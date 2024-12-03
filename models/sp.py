@@ -20,6 +20,8 @@ from from_file import load_annotated_data
 from layered_graph import LayeredGraph
 from tables import START_TOKEN, END_TOKEN, UNK_TOKEN
 
+import pickle
+
 
 class SP(Base):
     def __init__(self: Type["SP"]) -> None:
@@ -32,15 +34,69 @@ class SP(Base):
                  ) -> None:
         super()._init_tm(word_corpus, tag_corpus, init_val=init_val)
 
+    def save(self, filepath):
+        with open(filepath, "wb") as f:
+            pickle.dump(self, f)
+        
+
+    def load(filepath):
+        with open(filepath, "rb") as f:
+            return pickle.load(f)
+
+
     def sp_training_algorithm(self: Type["SP"],
                               word_corpus: Sequence[Sequence[str]],
                               tag_corpus: Sequence[Sequence[str]],
                               ) -> Tuple[int, int]:
-        # TODO: complet me!
+        # TODO: complete me!
         #    This method should implement the structured perceptron training algorithm,
         #    and it should return a pair of ints (num_correct, num_total).
         #       num_correct should contain the number of tags that were correctly predicted
         #       num_total should contain the number of total tags predicted
+        '''Initialize bigram tag model with 0s and emission model with 0s
+        For each training sequence 𝒘, 𝒕
+        Tag 𝒘 to get predicted tag sequence 𝒑=𝑝_1,𝑝_2, …, 𝑝_𝑛
+        For 𝑖=1…𝑛
+        Increment bigram entry for (𝑡_(𝑖−1),𝑡_𝑖 )
+        Decrement bigram entry for (𝑝_(𝑖−1),𝑝_𝑖 )
+
+        Increment emission entry for (𝑡_𝑖,𝑤_𝑖 )
+        Decrement emission entry for (𝑝_𝑖,𝑤_𝑖 )
+        Increment bigram entry for (𝑡_𝑛,<𝐸𝑂𝑆>)
+        Decrement bigram entry for (𝑝_𝑛,<𝐸𝑂𝑆>)
+        '''
+
+        num_correct = 0
+        num_total = 0
+
+        # For each training sequence 𝒘, 𝒕
+        for i, predicted_tags in enumerate(self.predict(word_corpus)):
+            sentence = word_corpus[i]
+            true_tags = tag_corpus[i]
+
+            prev_pred_tag = START_TOKEN
+            prev_true_tag = START_TOKEN
+
+            for word, pred_tag, true_tag in zip(sentence, predicted_tags, true_tags):
+                self.lm.increment_value(prev_pred_tag, pred_tag, -1)
+                self.lm.increment_value(prev_true_tag, true_tag, 1)
+
+                prev_pred_tag = pred_tag
+                prev_true_tag = true_tag
+                
+                self.tm.increment_value(pred_tag, word, -1)
+                self.tm.increment_value(true_tag, word, 1)
+
+                if pred_tag == true_tag:
+                    num_correct += 1
+                
+            self.lm.increment_value(prev_pred_tag, END_TOKEN, -1)
+            self.lm.increment_value(prev_true_tag, END_TOKEN, 1)
+
+            num_total += len(sentence)
+
+        return (num_correct, num_total)
+
 
     def _train(self: Type["SP"],
                train_word_corpus: Sequence[Sequence[str]],
@@ -122,4 +178,50 @@ class SP(Base):
 
         # TODO: complete me!
         # This method should look identical to your HMM viterbi!
+        lgraph = LayeredGraph(init_val = -np.inf)
+
+        def init_func() -> LayeredGraph:
+            return lgraph
+
+        def update_func_ptr(child_tag : str,
+                     word : str,
+                     parent_tag : str,
+                     log_value : float,
+                     lgraph : LayeredGraph
+                     ) -> None:
+
+            # tm is tag to word
+            # lm is parent to child
+            transition_prob = 0
+
+            # print(lgraph.node_layers[-1][child_tag])
+
+            # if self.lm.get_value(parent_tag, child_tag) > 0 and self.tm.get_value(child_tag, word) > 0:
+            transition_prob = log_value + self.lm.get_value(parent_tag, child_tag) + self.tm.get_value(child_tag, word)
+                # print("tp")
+                # print(transition_prob)
+                # print(self.lm.get_value(parent_tag, child_tag))
+                # print(self.tm.get_value(child_tag, word))
+
+            # print("get node in layer")
+            # print(lgraph.get_node_in_layer(child_tag)[0])
+
+            if (transition_prob > lgraph.get_node_in_layer(child_tag)[0]):
+                lgraph.add_node(child_tag, transition_prob, parent_tag)
+            
+        self.viterbi_traverse(word_list, init_func, update_func_ptr)
+
+        path = list([END_TOKEN])
+
+        # try with -1, 0, -1 if you must
+        for i in range(len(word_list)+1, 1, -1):
+            parent_tag = lgraph.node_layers[i][path[0]][1]
+            path.insert(0, parent_tag)
+
+        # remove BOS from path, return the logprob of EOS
+        return path[:-1], lgraph.node_layers[-1][END_TOKEN][0]
+
+        # only change for sp.py:
+        # line 70 isn't there
+        # don't need math.log (we are dealing with counts)
 

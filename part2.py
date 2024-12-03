@@ -46,10 +46,11 @@ def part_a(train_word_corpus: Sequence[Sequence[str]],
             write_output_and_evaluate(dev_out_path, dev_word_corpus, dev_predicted_corpus, dev_tag_corpus,
                                       outfile=perf_path)
 
+    # test max_epochs to 15 as well
     model.train_from_raw(train_word_corpus, train_tag_corpus,
                          dev_word_corpus=dev_word_corpus, dev_tag_corpus=dev_tag_corpus, 
-                         converge_error=1e-7, max_epochs=300, log_function=log_function)
-
+                         converge_error=1e-7, max_epochs=7, log_function=log_function)
+    model.save("model_2.pt")
     return model
 
 
@@ -89,8 +90,10 @@ def main():
     train_word_corpus, train_tag_corpus = load_annotated_data(train_data_path)
     dev_word_corpus, dev_tag_corpus = load_annotated_data(dev_data_path)
 
-    model = part_a(train_word_corpus, train_tag_corpus, generated_dir,
-                   dev_word_corpus=dev_word_corpus, dev_tag_corpus=dev_tag_corpus)
+    #model = part_a(train_word_corpus, train_tag_corpus, generated_dir,
+    #             dev_word_corpus=dev_word_corpus, dev_tag_corpus=dev_tag_corpus)
+    model = SP.load("model_1.pt")
+
     part_b(model, dev_out_path, dev_word_corpus, dev_tag_corpus)
 
 if __name__ == "__main__":

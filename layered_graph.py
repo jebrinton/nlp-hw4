@@ -25,6 +25,7 @@ class LayeredGraph(object):
                  child_value: float,
                  parent_node_name: str
                  ) -> None:
+        # print(f"node {child_node_name} added w val {child_value} and parent {parent_node_name}")
         current_layer: Mapping[str, Tuple[float, str]] = self.node_layers[-1]
         current_layer[child_node_name] = tuple([child_value, parent_node_name])
 

@@ -4,6 +4,7 @@ from typing import Type, Tuple
 import numpy as np
 import os
 import sys
+import math
 
 
 _cd_ = os.path.abspath(os.path.dirname(__file__))
@@ -53,4 +54,50 @@ class HMM(Base):
 
         # TODO: complete me!
         # this method should return the most probable path along with the logprob of the most probable path
-        return (["string", "string2"], -0.01991)
+        lgraph = LayeredGraph(init_val = -np.inf)
+
+        def init_func() -> LayeredGraph:
+            return lgraph
+
+        def update_func_ptr(child_tag : str,
+                     word : str,
+                     parent_tag : str,
+                     log_value : float,
+                     lgraph : LayeredGraph
+                     ) -> None:
+
+            # tm is tag to word
+            # lm is parent to child
+            transition_prob = -math.inf
+
+            # print(lgraph.node_layers[-1][child_tag])
+
+            if self.lm.get_value(parent_tag, child_tag) > 0 and self.tm.get_value(child_tag, word) > 0:
+                transition_prob = log_value + np.log(self.lm.get_value(parent_tag, child_tag)) + np.log(self.tm.get_value(child_tag, word))
+                # print("tp")
+                # print(transition_prob)
+                # print(self.lm.get_value(parent_tag, child_tag))
+                # print(self.tm.get_value(child_tag, word))
+
+            # print("get node in layer")
+            # print(lgraph.get_node_in_layer(child_tag)[0])
+
+            if (transition_prob > lgraph.get_node_in_layer(child_tag)[0]):
+                lgraph.add_node(child_tag, transition_prob, parent_tag)
+            
+        self.viterbi_traverse(word_list, init_func, update_func_ptr)
+
+        path = list([END_TOKEN])
+
+        # try with -1, 0, -1 if you must
+        for i in range(len(word_list)+1, 1, -1):
+            parent_tag = lgraph.node_layers[i][path[0]][1]
+            path.insert(0, parent_tag)
+
+        # remove BOS from path, return the logprob of EOS
+        return path[:-1], lgraph.node_layers[-1][END_TOKEN][0]
+
+        # only change for sp.py:
+        # line 70 isn't there
+        # don't need math.log (we are dealing with counts)
+

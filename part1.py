@@ -120,7 +120,7 @@ def main():
 
     part_a(train_word_corpus, train_tag_corpus)
     model = part_b(train_word_corpus, train_tag_corpus)
-    # part_c(model, dev_out_path, dev_word_corpus, dev_tag_corpus)
+    part_c(model, dev_out_path, dev_word_corpus, dev_tag_corpus)
 
 if __name__ == "__main__":
     main()

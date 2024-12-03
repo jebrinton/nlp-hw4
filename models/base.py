@@ -67,11 +67,9 @@ class Base(object):
         # TODO: complete me!
         #   iterate through each sequence of the corpus and increment the corresponding bigram entries
         #   don't forget to increment <EOS> after each sequence!
-        # for seq in tag_corpus:
-        #     bigram = self.lm
-        #     print(dir(bigram))
-        #     print(self.lm)
-        #     print("seq", seq)
+        for seq in tag_corpus:
+            for prev, cur in zip([START_TOKEN] + list(seq), list(seq) + [END_TOKEN]):
+                self.lm.increment_value(prev, cur)
         return None
 
     def _train(self: Type["Base"],
@@ -120,7 +118,30 @@ class Base(object):
         #   and your code should populate this graph. To be clear, the traversal code here will
         #   need to allocate new layers on the graph, but to populate the newly created layer,
         #   you can call update_func_ptr
-        return None
+        lgraph : LayeredGraph = init_func_ptr()
+
+        lgraph.add_layer()
+        lgraph.add_node(START_TOKEN, 0.0, None)
+        
+        # exit()
+        # print(lgraph.node_layers[-1].items())
+
+        # each iteration of this populates a new layer
+        for word in word_list:
+            lgraph.add_layer()
+
+            # print('parentslayeritems')
+            # print(lgraph.node_layers[-2].items())
+
+            # iterate thru parents, then thru possible child tags
+            for parent_tag, (pathcost, _) in lgraph.node_layers[-2].items():
+                for child_tag in self.tag_vocab - set([UNK_TOKEN]):
+                    update_func_ptr(child_tag, word, parent_tag, pathcost, lgraph)
+
+
+        lgraph.add_layer()
+        for parent_tag, [pathcost, _] in lgraph.node_layers[-2].items():
+            update_func_ptr(END_TOKEN, END_TOKEN, parent_tag, pathcost, lgraph)
 
     def predict_sentence(self: Type["Base"],
                          word_list: Sequence[str]
